@@ -6,7 +6,7 @@ void char2float_interlace_reflect(void* input_char_void,void* input_half_void,lo
 void int2float(void* input_int_void,void* input_half_void,long long int fft_length,long long int batch,int thread_num,int input_type_flag);
 size_t input_type_size(int input_type_flag);
 
-void char2float(void* input_int_void,void* input_half_void,long long int fft_length,long long int batch,int thread_num);
+void char2float(void* input_int_void,void* input_half_void,long long int fft_length,long long int batch,int thread_num, int input_type_flag);
 
 void char2float_reflect(void* input_char_void,void* input_half_void,long long int fft_length,long long int batch,int thread_num);
 

@@ -183,9 +183,9 @@ size_t input_type_size(int input_type_flag)
 }
 
 //保留与之前的代码的兼容性
-void char2float(void* input_int_void,void* input_half_void,long long int fft_length,long long int batch,int thread_num)
+void char2float(void* input_int_void,void* input_half_void,long long int fft_length,long long int batch,int thread_num, int input_type_flag)
 {
-    int2float(input_int_void,input_half_void,fft_length,batch,thread_num,0);
+    int2float(input_int_void,input_half_void,fft_length,batch,thread_num,input_type_flag);
 };
 
 //以下两个函数与之前的两个函数类似,只是按照倒序读取输入数据.用于对末尾的输入数据进行反射,差别仅在于input_block_offset多一个负号,此外;

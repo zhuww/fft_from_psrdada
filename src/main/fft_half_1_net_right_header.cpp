@@ -10,8 +10,7 @@
 #include<regex.h>
 #include <getopt.h>
 
-#include <cuda_macros.hpp>
-#include <io_wrapper.hpp>
+#include <other_function_library.hpp>
 #include <kernal_wrapper.hpp>
 #include <cufft_wrapper.hpp>
 #include<filheader.h>
@@ -34,16 +33,17 @@ struct fft_half_1_net_par_list
     long long int compress_channel_num;
     long long int batch_buffer_size;
     double tsamp;
-    double tstart_in = 60084.0;
-    double start_time_in = 60084.8;
-    double src_dej_in =  52.1537;
-    double src_raj_in = 31.9474;
     long long int thread_num;
+    double tstart_in;
+    double start_time_in;
+    double src_dej_in;
+    double src_raj_in;
     
     //以下参数用于写入文件头
     char* source_name_in;
     int machine_id_in;
     int telescope_id_in;
+    int input_type_flag;
     
     //####下列参数由程序自行计算####
     
@@ -55,8 +55,6 @@ struct fft_half_1_net_par_list
     int write_head;
     int print_memory;
     int write_data;
-    // input datastream format: 1 for 16 bit, 0 for 8 bit
-    int input_type_flag=0;
 
 };
 
@@ -90,10 +88,6 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
           {"compress_channel_num" ,required_argument ,NULL, 'l'},
           {"batch_buffer_size" ,required_argument ,NULL, 'l'},
           {"tsamp",required_argument ,NULL, 'd'},
-          {"tstart_in",required_argument ,NULL, 'd'},
-          {"start_time_in",required_argument ,NULL, 'd'},
-          {"src_raj_in",required_argument ,NULL, 'd'},
-          {"src_dej_in",required_argument ,NULL, 'd'},
           {"thread_num",required_argument ,NULL, 'l'},
           
           //标志位
@@ -101,7 +95,6 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
           {"write_head" ,required_argument ,NULL, 'i'},
           {"write_data" ,required_argument ,NULL, 'i'},
           {"print_memory" ,required_argument ,NULL, 'i'},
-          {"input_type_flag",required_argument ,NULL, 'i'},
           
           //写入文件头的部分
           {"source_name_in" ,required_argument ,NULL,'s'},
@@ -124,7 +117,7 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
         {"begin_channel",(void*)&par->begin_channel},
         {"compress_channel_num",(void*)&par->compress_channel_num},
         {"batch_buffer_size",(void*)&par->batch_buffer_size},
-        {"tsamp",(void*)&par->tsamp},
+{"tsamp",(void*)&par->tsamp},
         
         {"write_head" ,(void*)&par->write_head},
         {"write_data" ,(void*)&par->write_data},
@@ -133,12 +126,7 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
         {"source_name_in" ,(void*)&par->source_name_in},
         {"machine_id_in" ,(void*)&par->machine_id_in},
         {"telescope_id_in" ,(void*)&par->telescope_id_in},
-        {"input_type_flag" ,(void*)&par->input_type_flag},
-        {"thread_num" ,(void*)&par->thread_num},
-	{"tstart_in" ,(void*)&par->tstart_in},
-        {"start_time_in" ,(void*)&par->start_time_in},
-        {"src_raj_in" ,(void*)&par->src_raj_in},
-        {"src_dej_in" ,(void*)&par->src_dej_in}
+        {"thread_num" ,(void*)&par->thread_num}
     };*/
     
     //C++98
@@ -158,33 +146,28 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
         
     par_dic.insert(std::pair<std::string ,void *>("source_name_in" ,(void*)&par->source_name_in));
     par_dic.insert(std::pair<std::string ,void *>("machine_id_in" ,(void*)&par->machine_id_in));
-    par_dic.insert(std::pair<std::string ,void *>("telescope_id_in" ,(void*)&par->telescope_id_in));
-    par_dic.insert(std::pair<std::string ,void *>("thread_num" ,(void*)&par->thread_num));
-
-    par_dic.insert(std::pair<std::string ,void *>("tstart_in" ,(void*)&par->tstart_in));
-    par_dic.insert(std::pair<std::string ,void *>("start_time_in" ,(void*)&par->start_time_in));
-    par_dic.insert(std::pair<std::string ,void *>("src_raj_in" ,(void*)&par->src_raj_in));
-    par_dic.insert(std::pair<std::string ,void *>("src_dej_in" ,(void*)&par->src_dej_in));
-    par_dic.insert(std::pair<std::string ,void *>("input_type_flag" ,(void*)&par->input_type_flag));
+    par_dic.insert(std::pair<std::string ,void *>("telescope_id_in" ,(void*)&par->telescope_id_in));      par_dic.insert(std::pair<std::string ,void *>("thread_num" ,(void*)&par->thread_num));
 
     //下列参数可以自行指定数值，先进行默认初始化
     
     //规定程序进行fft变换的长度,程序会把fft_length个采样点作为一个区间进行fft变换
     //由于程序使用了cufft库,该数必须为2的正数次幂
     //par->fft_length=131072;
+    //par->fft_length=65536;
     par->fft_length=16384;
-    
     //压缩数据时,滑动窗口的长度,单位为区间,假设window_size=4,fft_length=16,则滑动窗口会跨越16个fft变换区间，共64个采样点
     par->window_size=4096;
     
     //合并的采样点数量(若step=4,则程序会把时间上相邻的4个区间的功率谱相加)
-    //par->step=4;
-    par->step=8;
+    par->step=16;
     
     //输出结果的起始频率通道序号
+    //par->begin_channel=par->fft_length/4;
     par->begin_channel=par->fft_length/4;
+    //par->begin_channel=0;
     
     //输出的结果包含的通道数,必须能被8整除(因为每8个相邻通道被压缩到了一个字节)
+    //par->compress_channel_num=par->fft_length/4;
     par->compress_channel_num=par->fft_length/4;
     
     //规定可用缓冲区的大小,单位为fft区间长度的二倍,若规定fft_length=16,batch_buffer_size=8,则程序会分配16*8*2=256字节的缓冲区(之所以乘以系数2是因为数据有两个通道)
@@ -197,6 +180,8 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
     
     //规定采样点的时间间隔,单位为秒,该数据会被写入文件头
     //par->tsamp=1.0/(2500000000/2);
+    //par->tsamp=1.0e-09;
+    //par->tsamp=1.0/(625e6);
     par->tsamp=1.0/(400e6);
     
     //初始化标志位
@@ -208,10 +193,8 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
     par->telescope_id_in=0;
     
     //初始化一些只能在手动初始化后自动初始化的参数.需要用特殊的值标记
-    //par->output_name=NULL;
-    //par->source_name_in==NULL;
+    par->output_name=NULL;
     par->source_name_in="Polar";
-    par->output_name="Polar_Ulastai.fil";
     par->thread_num=0;
     
     //利用命令行选项第二次初始化参数
@@ -272,13 +255,11 @@ void initialize_1_channel_parameter_list (int argc ,char **argv ,pars *par)
     //这两个参数也是可手动指定的参数，应该在最开始被自动初始化，但由于getopt库只有在初始化所有”--型“参数后才给出无选项参数，因此只能放在这里初始化
     if(par->output_name==NULL)
         {
-           // par->output_name="Polar_Ulastai.fil";
-            par->output_name="test.fil";
+            par->output_name="Polar_Ulastai.fil";
         }
     if(par->source_name_in==NULL)
         {
-            par->source_name_in="epmty";
-            //par->source_name_in="Polar";
+            par->source_name_in="Polar";
         }
 
     //thread_num规定了程序在计算fft变换结果对应的功率谱以及压缩数据时使用的线程数
@@ -317,7 +298,6 @@ int fft_half_1_channel(pars *par ,char * stop_flag)
     double *average_data;
     char* compressed_data;
     float *input_float;
-    int input_type_flag=par->input_type_flag;
     
     //计算需要为程序分配的内存空间大小(
     
@@ -377,8 +357,8 @@ int fft_half_1_channel(pars *par ,char * stop_flag)
     if(par->write_head)
     {
         //该函数会根据传入的文件名创建一个新文件,写入并关闭
-        //write_header(par->output_name,par->source_name_in, 8, 21, par->compress_channel_num, 1, 1, 1, 58849., 0.0,  par->tsamp*par->fft_length*par->step, 1.0/par->tsamp/1.0e6*((par->begin_channel+par->compress_channel_num-1)/par->fft_length), -1.0/par->tsamp/1.0e6/par->fft_length, 0.0, 0.0, 0.0, 0.0);
-        write_header(par->output_name,par->source_name_in, 8, 21, par->compress_channel_num, 1, 1, 1, par->tstart_in, par->start_time_in,  par->tsamp*par->fft_length*par->step, 1.0/par->tsamp/1.0e6*((par->begin_channel+par->compress_channel_num-1)*1.0/par->fft_length), 1.0/par->tsamp/1.0e6/par->fft_length, 0.0, 0.0, par->src_raj_in, par->src_dej_in);
+        write_header(par->output_name,par->source_name_in, 8, 21, par->compress_channel_num, 1, 1, 1, 60081.2524, 0.0,  par->tsamp*par->fft_length*par->step, 1.0/par->tsamp/1.0e6*((par->begin_channel+par->compress_channel_num-1)*1.0/par->fft_length), 1.0/par->tsamp/1.0e6/par->fft_length, 0.0, 0.0, 0.0, 0.0);
+        //write_header(par->output_name,par->source_name_in, 8, 21, par->compress_channel_num, 1, 1, 1, 60081.2524., 0.0,  par->tsamp*par->fft_length*par->step, 1500.0, 1.0/par->tsamp/1.0e6/par->fft_length, 0.0, 0.0, 0.0, 0.0);
         printf("Succeed writing file header .\n");
     }
     if(par->write_data)
@@ -409,7 +389,7 @@ int fft_half_1_channel(pars *par ,char * stop_flag)
         printf("fail to read enough data\n");
         exit(1);
     }
-    char2float(input_char,input_half,par->fft_length,par->window_size,par->thread_num,input_type_flag);
+    char2float(input_char,input_half,par->fft_length,par->window_size,par->thread_num);
     
     if(par->print_memory)
     {print_data_half(input_half,0,input_half_size,par->fft_length+2);}
@@ -445,7 +425,7 @@ int fft_half_1_channel(pars *par ,char * stop_flag)
             break;
         }
         
-        char2float(input_char,input_half_add,par->fft_length,par->per_batch,par->thread_num,input_type_flag);
+        char2float(input_char,input_half_add,par->fft_length,par->per_batch,par->thread_num);
         
         if(par->print_memory)
         {print_data_half(input_half,0,input_half_size,par->fft_length+2);}
@@ -489,7 +469,7 @@ int fft_half_1_channel(pars *par ,char * stop_flag)
 
         //read_char_array(input_char+fft_length*per_batch*2,simulate_input_char,fft_length*remain_batch*2);
         //先读取余下的数据
-        char2float(input_char,input_half_add,par->fft_length,remain_batch,par->thread_num,input_type_flag);
+        char2float(input_char,input_half_add,par->fft_length,remain_batch,par->thread_num);
         
         if(par->print_memory)
         {print_data_half(input_half,0,input_half_size,par->fft_length+2);}
@@ -558,31 +538,8 @@ int fft_half_1_channel(pars *par ,char * stop_flag)
     return 0;
 }
 
-// print help
-void PrintHelp() {
-    std::cout << "Usage: program_name [--options values]" << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << "  -h      Print help message" << std::endl;
-    std::cout << "source_name_in: Polar" << std::endl;
-    std::cout << "output_name: Polar_Ulastai.fil" << std::endl;
-    std::cout << "tstart_in: 60084.0" << std::endl;
-    std::cout << "start_time_in: 60084.8" << std::endl;
-    std::cout << "src_raj_in: 31.9474" << std::endl;
-    std::cout << "src_dej_in: 52.1537" << std::endl;
-    std::cout << "fft_length: 16384" << std::endl;
-    std::cout << "step: 4" << std::endl;
-    std::cout << "tsamp: 5e-9 (sec)" << std::endl;
-    std::cout << "input_type_flag: (1:16 bit input, 0 8 bit input)" << std::endl;
-    exit(0);
-}
-
-
 int main(int argc, char *argv[]) {
-    // 检查命令行参数的数量
-    if (argc == 2 && std::string(argv[1]) == "-h") {
-        // 打印帮助文档并退出程序
-        PrintHelp();
-    }    
+    
     //注册信号处理程序
     signal(SIGINT,sig_handler);
     

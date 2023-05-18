@@ -1,11 +1,11 @@
-fft_length : 1024
+fft_length : 16
 input_type_flag : 1
 
-begin_channel : 1 #min value is 1(not support 0)
-compress_channel_num : 512
+begin_channel : 4096 #min value is 1(not support 0)
+compress_channel_num : 4096
 window_size : 8192
 batch_buffer_size : 16384
-step : 16
+step : 4
 
 #set write_head to 1 to let program write header to output file
 #set print_memory to 1 to debug
@@ -14,20 +14,21 @@ write_head : 1
 print_memory : 0
 write_data : 1
 
-tsamp : 8e-10
+tsamp : 2.5e-9
 machine_id_in : 0
-telescope_id_in : 0
+telescope_id_in : 21
 
 #set to 0 to let program auto select a number
 thread_num : 0
 
 #cannot be empty
 #if output_name and file name stream are set to relative path , they are considered relative to current shell path
-output_name : /tmp/16bit.fil
-source_name_in : rawdata
+output_name : /root/data/16bit.fil
+source_name_in : ulastai-sin-signal
 
 #stream : /ssd/liuzh/data/21CMA_16bit_test.dat_test.dat
-stream : /ssd/liuzh/data/21CMA_16bit_test.dat
+#stream : /ssd/liuzh/data/21CMA_16bit_test.dat
+stream : /root/data/ulastaiE20-0518.dat 
 
 #set to 0 to let program decide it by input file size
 signal_length : 0
