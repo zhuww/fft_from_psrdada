@@ -1,6 +1,8 @@
 #define source file path
 LIB_SRC_DIR :=src/lib/
 LIB_HEADER_SRC_DIR :=src/lib/headers/
+DADA_HEADER_DIR :=/usr/local/include/
+DADA_LIB_DIR :=/usr/local/lib/
 TEST_SRC_DIR :=src/test/
 MAIN_SRC_DIR :=src/main/
 
@@ -20,11 +22,12 @@ LIB_BIN_DIR_FOR_LINK :=$(realpath $(LIB_BIN_DIR))
 #HEADERS:=$(wildcard $(LIB_HEADER_SRC_DIR)/*)
 
 #lists of library
-NVCC_LIBRARY := cufft_wrapper kernel_wrapper io_wrapper
+#NVCC_LIBRARY := cufft_wrapper kernel_wrapper io_wrapper
+NVCC_LIBRARY := cufft_wrapper kernel_wrapper io_wrapper other_function_library psrdada_wrapper
 C_LIBRARY := fil_header_writer
 CPP_LIBRARY := yaml2cpp
 #libraries that are already installed in system
-SYSTEM_NVCC_LIBRARY := cufft 
+SYSTEM_NVCC_LIBRARY := cufft psrdada 
 SYSTEM_C_CPP_LIBRARY := yaml
 
 #all project libraries
@@ -55,7 +58,8 @@ CPP_TEST_WITH_PATH :=$(addprefix $(TEST_BIN_DIR), $(CPP_TEST) )
 TEST_WITH_PATH :=$(NVCC_TEST_WITH_PATH) $(C_TEST_WITH_PATH) $(CPP_TEST_WITH_PATH)
 
 #lists of main program
-NVCC_MAIN := fft_half_2_channel fft_half_1_channel fft_phase_shift
+#NVCC_MAIN := fft_half_2_channel fft_half_1_channel fft_phase_shift
+NVCC_MAIN := fft_half_1_net fft_half_2_channel fft_half_1_channel fft_phase_shift
 C_MAIN :=
 CPP_MAIN :=
 
@@ -73,7 +77,7 @@ ALL_TARGETS :=$(LIBRARY_WITH_PATH) $(TEST_WITH_PATH) $(MAIN_WITH_PATH)
 NVCC_CODE_FLAG :=-gencode arch=compute_61,code=sm_61
 
 #define compilers for library
-NVCC_LIB := nvcc --compiler-options="-fPIC -shared" --linker-options="-shared" --shared -I $(LIB_HEADER_SRC_DIR) $(NVCC_CODE_FLAG) -DPRINT_INFO -DDEBUG -g
+NVCC_LIB := nvcc --compiler-options="-fPIC -shared" --linker-options="-shared" --shared -I $(LIB_HEADER_SRC_DIR) $(NVCC_CODE_FLAG) -DPRINT_INFO -DDEBUG -g -L $(DADA_LIB_DIR)
 C_LIB := gcc -fPIC -shared -I $(LIB_HEADER_SRC_DIR) -DPRINT_INFO -DDEBUG -g
 CPP_LIB :=g++ -fPIC -shared -I $(LIB_HEADER_SRC_DIR) -DPRINT_INFO -g
 
@@ -106,7 +110,7 @@ library:$(LIBRARY_WITH_PATH)
 #依赖项必须为文件名，若依赖项为虚拟目标，则make总会重新执行编译
 #利用%匹配变量的字段
 $(NVCC_LIBRARY_WITH_PATH):$(LIB_BIN_DIR)lib%.so:$$(wildcard $(LIB_SRC_DIR)%/*)
-	$(NVCC_LIB) -o $@ $^
+	$(NVCC_LIB) -I $(DADA_HEADER_DIR) -o $@ $^
 $(C_LIBRARY_WITH_PATH):$(LIB_BIN_DIR)lib%.so:$$(wildcard $(LIB_SRC_DIR)%/*)
 	$(C_LIB) -o $@ $^
 $(CPP_LIBRARY_WITH_PATH):$(LIB_BIN_DIR)lib%.so:$$(wildcard $(LIB_SRC_DIR)%/*)
@@ -129,6 +133,7 @@ $(CPP_MAIN_WITH_PATH):$(MAIN_BIN_DIR)%:$$(wildcard $(MAIN_SRC_DIR)%/*)
 #delete all binary files
 clean:
 	rm -f $(ALL_TARGETS)
+	rm -f $(LIB_BIN_DIR)lib*.so
 
 #generate ignore file list for git
 gitignore: .gitignore
